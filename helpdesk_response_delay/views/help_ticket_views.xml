@@ -5,7 +5,7 @@
         <field name="inherit_id" ref="odoo_website_helpdesk.help_ticket_view_form"/>
         <field name="arch" type="xml">
             <xpath expr="//field[@name='end_date']" position="after">
-                <field name="first_response" invisible="1"/>
+                <field name="first_response"/>
                 <field name="response_delay_hours"/>
                 <field name="response_delay_days"/>
             </xpath>
