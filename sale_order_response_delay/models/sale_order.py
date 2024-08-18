@@ -3,13 +3,19 @@ import math
 from datetime import datetime, time, timedelta
 
 
-class HelpTicket(models.Model):
-    _inherit = 'help.ticket'
+class SaleOrder(models.Model):
+    _inherit = 'sale.order'
 
     response_delay_hours = fields.Integer(compute="_compute_response_delay")
     response_delay_days = fields.Integer(compute="_compute_response_delay")
     first_response = fields.Datetime(readonly=False)
-    create_datetime = fields.Datetime(readonly=False)
+
+    @api.returns('mail.message', lambda value: value.id)
+    def message_post(self, **kwargs):
+        print(kwargs)
+        if kwargs.get("subtype_id") == 1 and kwargs.get("message_type") == "comment" and not self.first_response:
+            self.first_response = datetime.now()
+        return super().message_post(**kwargs)
 
     @classmethod
     def __float_to_time(cls, hours_float):
@@ -103,10 +109,10 @@ class HelpTicket(models.Model):
         return hours
 
     def __get_response_delay_hours(self):
-        workday_create_datetime_periods = self.__get_workday_periods(self.create_datetime)
+        workday_create_datetime_periods = self.__get_workday_periods(self.create_date)
         # working_hours_per_day = self.__count_working_hours_per_day()
         workday_first_response_datetime_periods = self.__get_workday_periods(self.first_response)
-        create_datetime = self.__get_datetime_in_working_hours(self.create_datetime, *workday_create_datetime_periods)
+        create_datetime = self.__get_datetime_in_working_hours(self.create_date, *workday_create_datetime_periods)
         first_response_datetime = self.__get_datetime_in_working_hours(self.first_response, *workday_first_response_datetime_periods)
 
         is_same_day = first_response_datetime[0].date() == create_datetime[0].date()
@@ -133,15 +139,15 @@ class HelpTicket(models.Model):
             return 0
         return math.ceil(time_delta.total_seconds() / 3600)
 
-    @api.depends("create_datetime", "first_response")
+    @api.depends("create_date", "first_response")
     def _compute_response_delay(self):
         # self.ensure_one()
-        for ticket in self:
-            if ticket.first_response and ticket.create_datetime:
+        for order in self:
+            if order.first_response:
                 response_delay_hours = self.__get_response_delay_hours()
-                ticket.response_delay_hours = response_delay_hours
-                ticket.response_delay_days = math.ceil(response_delay_hours / 24)
+                order.response_delay_hours = response_delay_hours
+                order.response_delay_days = math.ceil(response_delay_hours / 24)
             else:
-                ticket.response_delay_hours = 0
-                ticket.response_delay_days = 0
+                order.response_delay_hours = 0
+                order.response_delay_days = 0
             
